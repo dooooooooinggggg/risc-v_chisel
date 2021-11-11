@@ -1,48 +1,36 @@
-package riscvtests
+package fetch
 
 import chisel3._
 import chisel3.util._
-import common.Consts._
 import chisel3.util.experimental.loadMemoryFromFile
+import common.Consts._
 
+/* ImemPortIoクラスはBundleを継承する形で、addrとinstの2信号をまとめています。
+addr:メモリアドレス用の入力ポート
+inst:命令データ用の出力ポート
+ともに32bit幅(∵WORD_LEN=32) */
 class ImemPortIo extends Bundle {
-  val addr = Input(UInt(WORD_LEN.W))
-  val inst = Output(UInt(WORD_LEN.W))
-}
-
-class DmemPortIo extends Bundle {
-  val addr  = Input(UInt(WORD_LEN.W))
-  val rdata = Output(UInt(WORD_LEN.W))
-  val wen   = Input(Bool())
-  val wdata = Input(UInt(WORD_LEN.W))
+val addr = Input(UInt(WORD_LEN.W))
+val inst = Output(UInt(WORD_LEN.W))
 }
 
 class Memory extends Module {
-  val io = IO(new Bundle {
-    val imem = new ImemPortIo()
-    val dmem = new DmemPortIo()
-  })
+val io = IO(new Bundle {
+val imem = new ImemPortIo()
+})
 
-  val mem = Mem(16384, UInt(8.W))
-//   loadMemoryFromFile(mem, "src/riscv/rv32ui-p-sw.hex")
-  loadMemoryFromFile(mem, "src/hex/fetch.hex")
-  io.imem.inst := Cat(
-    mem(io.imem.addr + 3.U(WORD_LEN.W)), 
-    mem(io.imem.addr + 2.U(WORD_LEN.W)),
-    mem(io.imem.addr + 1.U(WORD_LEN.W)),
-    mem(io.imem.addr)
-  )
-  io.dmem.rdata := Cat(
-    mem(io.dmem.addr + 3.U(WORD_LEN.W)),
-    mem(io.dmem.addr + 2.U(WORD_LEN.W)), 
-    mem(io.dmem.addr + 1.U(WORD_LEN.W)),
-    mem(io.dmem.addr)
-  )
+/* メモリの実体として、8bit幅×16384本(16KB)のレジスタを生成します。
+8bit幅である理由は、PCのカウントアップ幅を4にするためです。
+1アドレスに8bit、つまり4アドレスに32bit格納する形になります。 */
+val mem = Mem(16384, UInt(8.W))
 
-  when(io.dmem.wen){
-    mem(io.dmem.addr)                   := io.dmem.wdata( 7,  0)
-    mem(io.dmem.addr + 1.U(WORD_LEN.W)) := io.dmem.wdata(15,  8)
-    mem(io.dmem.addr + 2.U(WORD_LEN.W)) := io.dmem.wdata(23, 16)
-    mem(io.dmem.addr + 3.U(WORD_LEN.W)) := io.dmem.wdata(31, 24)
-  }
+// メモリデータをロード(hexファイル内容は後述)
+loadMemoryFromFile(mem, "src/hex/fetch.hex")
+
+// 各アドレスに格納された8bitデータを4つつなげて32bitデータに
+io.imem.inst := Cat(
+mem(io.imem.addr + 3.U(WORD_LEN.W)),
+mem(io.imem.addr + 2.U(WORD_LEN.W)),
+mem(io.imem.addr + 1.U(WORD_LEN.W)),
+mem(io.imem.addr))
 }
