@@ -10,7 +10,7 @@ class HexTest extends FlatSpec with ChiselScalatestTester {
     "mycpu" should "work through hex" in {
         test(new Top) { c =>
             // このブロックでテストを記述(変数cはTopクラスのインスタンス)
-            while (!c.io.exit.peek().litToBoolean()) {
+            while (!c.io.exit.peek().litToBoolean) {
                 c.clock.step(1)
             }
         }
